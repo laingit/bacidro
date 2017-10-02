@@ -1,6 +1,10 @@
 (ns bacidro.core)
 
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+(def BC_Fiume_Flumendosa
+  {:bacino "Fiume Flumendosa"
+   :idro   [
+            {:name  :F09
+             :child []}
+            {:name :F36}
+            ]}
+  )
