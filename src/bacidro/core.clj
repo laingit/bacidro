@@ -8,6 +8,7 @@
     [korma.db :as kDB :only (defdb get-connection)]
     [clojure.java.jdbc :as j]))
 
+(comment "database POSTGRES LIVE")
 (def db-spec
   {:classname   "org.postgresql.Driver"
    :subprotocol "postgresql"
@@ -28,6 +29,7 @@
                 WHERE public.idropost.settore = 1
                 ORDER BY idropost.settore,idropost.id, idropost.tipo;"]
     (j/query (get-connection-from-pool) [query])))
+;; --- END
 
 ;;
 (defn- set_2_obj [acc v]
@@ -66,6 +68,7 @@
   (let [obj (main-set_2_obj table)
         roots (main-roots table)
         children (group-children table)
+
         ]
     {:obj obj
      :roots roots
@@ -105,8 +108,6 @@
   {:settore [:definire :flumendosa]
    :tipo [:definire :base :mezzo :monte]
    :idrometro {:F09 {:tipo :base, :settore :definire}}})
-
-
 
 (def idro-no-db (list {:id "F09", :tipo 1M, :settore 1M, :valle nil}
   {:id "F10", :tipo 2M, :settore 1M, :valle "F42"}
