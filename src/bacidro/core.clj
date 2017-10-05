@@ -63,12 +63,22 @@
   (let [gruppo (group-by :valle table)]
     (map estrai-id-gruppo gruppo)))
 
+
+#_(defn- crea-coppia [padre-figli]
+  (let [[padre figli] (first (seq padre-figli)) ;; {:a [1 2]} -> padre=:a figli=[1 2]
+        lista-coppie (for [f figli] {:solo f :value {f padre}})]
+    lista-coppie))
+
+#_(defn- crea-tabella-nodi-doppi [children]
+  (let [coppie (mapcat crea-coppia children)]
+    coppie))
+
+
 ;;
 (defn main [table]
   (let [obj (main-set_2_obj table)
         roots (main-roots table)
         children (group-children table)
-
         ]
     {:obj obj
      :roots roots
@@ -112,7 +122,8 @@
 (def idro-no-db (list {:id "F09", :tipo 1M, :settore 1M, :valle nil}
   {:id "F10", :tipo 2M, :settore 1M, :valle "F42"}
   {:id "F21", :tipo 2M, :settore 1M, :valle "F09"}
-  {:id "F34", :tipo 2M, :settore 1M, :valle "F42"}
+  {:id "F34", :tipo 2M, :settore 1M, :valle "L11"};; errore
+                      ;;{:id "F34", :tipo 2M, :settore 1M, :valle "F42"}
   {:id "F36", :tipo 1M, :settore 1M, :valle nil}
   {:id "F42", :tipo 2M, :settore 1M, :valle "F21"}
   {:id "F70", :tipo 2M, :settore 1M, :valle "L19"}
