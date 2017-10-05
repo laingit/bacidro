@@ -21,7 +21,7 @@
   (kDB/get-connection korma-db))
 
 
-(def l2
+(def idro-live
   (let [query "SELECT \n
                 idropost.id, idropost.tipo, idropost.settore, idropost.valle
                 FROM public.idropost
@@ -51,11 +51,28 @@
        (filter find_roots)
        (map estrai_root)))
 
+;;
+(defn- estrai-id-gruppo [gruppo]
+  (let [[k v] gruppo
+        solo-id (map :id v)]
+    {k solo-id}))
+
+(defn group-children [table]
+  (let [gruppo (group-by :valle table)]
+    (map estrai-id-gruppo gruppo)))
+
+;;
 (defn main [table]
   (let [obj (main-set_2_obj table)
-        roots (main-roots table)]
-    {:obj obj :roots roots}))
+        roots (main-roots table)
+        children (group-children table)
+        ]
+    {:obj obj
+     :roots roots
+     :children children}))
 
+
+(main idro-live)
 
 
 
@@ -91,3 +108,15 @@
 
 
 
+(def idro-no-db (list {:id "F09", :tipo 1M, :settore 1M, :valle nil}
+  {:id "F10", :tipo 2M, :settore 1M, :valle "F42"}
+  {:id "F21", :tipo 2M, :settore 1M, :valle "F09"}
+  {:id "F34", :tipo 2M, :settore 1M, :valle "F42"}
+  {:id "F36", :tipo 1M, :settore 1M, :valle nil}
+  {:id "F42", :tipo 2M, :settore 1M, :valle "F21"}
+  {:id "F70", :tipo 2M, :settore 1M, :valle "L19"}
+  {:id "L10", :tipo 3M, :settore 1M, :valle "F70"}
+  {:id "L11", :tipo 3M, :settore 1M, :valle "F70"}
+  {:id "L19", :tipo 2M, :settore 1M, :valle "F34"}
+  {:id "L23", :tipo 3M, :settore 1M, :valle "F34"}
+  {:id "L6", :tipo 3M, :settore 1M, :valle "F10"}))
