@@ -31,29 +31,17 @@
     (j/query (get-connection-from-pool) [query])))
 ;; --- END
 
-;;
-(defn- set_2_obj [acc v]
-  (let [id (:id v)]
-    (assoc acc id v)))
+;;  MAIN SET 2 OBJ
+(defn- set_2_obj [acc {:keys [id tipo valle]}]
+  (let [def-tipo {1M :base 2M :mezzo 3M :monte}
+        nodo (def-tipo tipo)
+        obj {:nodo nodo :valle valle}]
+    (assoc acc id obj)))
 
 (defn- main-set_2_obj [table]
   (reduce set_2_obj {} table))
 
-;;
-(defn- find_roots [v]
-  (let [{:keys [:valle]} v]
-    (if (= valle nil) true false)))
-
-(defn- estrai_root [v]
-  (let [{:keys [:id ]} v]
-    id))
-
-(defn- main-roots [table]
-  (->> table
-       (filter find_roots)
-       (map estrai_root)))
-
-;;
+;;  GROUP CHILDREN
 (defn- estrai-id-gruppo [gruppo]
   (let [[k v] gruppo
         solo-id (map :id v)]
@@ -64,28 +52,34 @@
     (map estrai-id-gruppo gruppo)))
 
 
-#_(defn- crea-coppia [padre-figli]
-  (let [[padre figli] (first (seq padre-figli)) ;; {:a [1 2]} -> padre=:a figli=[1 2]
-        lista-coppie (for [f figli] {:solo f :value {f padre}})]
-    lista-coppie))
-
-#_(defn- crea-tabella-nodi-doppi [children]
-  (let [coppie (mapcat crea-coppia children)]
-    coppie))
-
-
-;;
 (defn main [table]
   (let [obj (main-set_2_obj table)
-        roots (main-roots table)
-        children (group-children table)
+
+        children
+        (->>
+          (group-children table)
+          (into {}))
+
+        report-nodi
+        (letfn [(conta-nodi [[k v]] {k (count v)})]
+          (map conta-nodi children))                    ; <-INPUT
+
         ]
-    {:obj obj
-     :roots roots
-     :children children}))
+    {:obj         obj
+     :rootName    nil
+     :children    children
+     :report-nodi (into {} report-nodi)}))
 
 
-(main idro-live)
+
+(def a
+  (main idro-live))
+a
+
+
+
+
+(= (a :children) (into {} (a :tmp.children)))
 
 
 
@@ -94,7 +88,7 @@
    :idro   [{:name  :F09
              :tipo  :base
              :monte [{:name  :F21
-                      :tipo :mezzo
+                      :tipo  :mezzo
                       :monte [{:name  :F42
                                :monte [{:name  :F10
                                         :monte [{:name :L6 :monte []}]}
@@ -110,25 +104,25 @@
                                }]
                       }]
              }
-            {:name :F36, :tipo :monte, :monte[]}
+            {:name :F36, :tipo :monte, :monte []}
             ]})
 
 
 (def db-idro
-  {:settore [:definire :flumendosa]
-   :tipo [:definire :base :mezzo :monte]
+  {:settore   [:definire :flumendosa]
+   :tipo      [:definire :base :mezzo :monte]
    :idrometro {:F09 {:tipo :base, :settore :definire}}})
 
 (def idro-no-db (list {:id "F09", :tipo 1M, :settore 1M, :valle nil}
-  {:id "F10", :tipo 2M, :settore 1M, :valle "F42"}
-  {:id "F21", :tipo 2M, :settore 1M, :valle "F09"}
-  {:id "F34", :tipo 2M, :settore 1M, :valle "L11"};; errore
+                      {:id "F10", :tipo 2M, :settore 1M, :valle "F42"}
+                      {:id "F21", :tipo 2M, :settore 1M, :valle "F09"}
+                      {:id "F34", :tipo 2M, :settore 1M, :valle "L11"} ;; errore
                       ;;{:id "F34", :tipo 2M, :settore 1M, :valle "F42"}
-  {:id "F36", :tipo 1M, :settore 1M, :valle nil}
-  {:id "F42", :tipo 2M, :settore 1M, :valle "F21"}
-  {:id "F70", :tipo 2M, :settore 1M, :valle "L19"}
-  {:id "L10", :tipo 3M, :settore 1M, :valle "F70"}
-  {:id "L11", :tipo 3M, :settore 1M, :valle "F70"}
-  {:id "L19", :tipo 2M, :settore 1M, :valle "F34"}
-  {:id "L23", :tipo 3M, :settore 1M, :valle "F34"}
-  {:id "L6", :tipo 3M, :settore 1M, :valle "F10"}))
+                      {:id "F36", :tipo 1M, :settore 1M, :valle nil}
+                      {:id "F42", :tipo 2M, :settore 1M, :valle "F21"}
+                      {:id "F70", :tipo 2M, :settore 1M, :valle "L19"}
+                      {:id "L10", :tipo 3M, :settore 1M, :valle "F70"}
+                      {:id "L11", :tipo 3M, :settore 1M, :valle "F70"}
+                      {:id "L19", :tipo 2M, :settore 1M, :valle "F34"}
+                      {:id "L23", :tipo 3M, :settore 1M, :valle "F34"}
+                      {:id "L6", :tipo 3M, :settore 1M, :valle "F10"}))
