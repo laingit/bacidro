@@ -8,80 +8,116 @@
     [korma.db :as kDB :only (defdb get-connection)]
     [clojure.java.jdbc :as j]))
 
-(comment "database POSTGRES LIVE")
-(def db-spec
-  {:classname   "org.postgresql.Driver"
-   :subprotocol "postgresql"
-   :subname     "//192.168.18.51:5432/rumbl_dev"
-   :user        "postgres"
-   :password    "postgres"})
+(comment
+  (def db-spec
+    {:classname   "org.postgresql.Driver"
+     :subprotocol "postgresql"
+     :subname     "//192.168.18.51:5432/rumbl_dev"
+     :user        "postgres"
+     :password    "postgres"})
 
-(kDB/defdb korma-db db-spec)
+  (kDB/defdb korma-db db-spec)
 
-(defn- get-connection-from-pool []
-  (kDB/get-connection korma-db))
+  (defn- get-connection-from-pool []
+    (kDB/get-connection korma-db))
 
 
-(def idro-live
-  (let [query "SELECT \n
+  (def idro-live
+    (let [query "SELECT \n
                 idropost.id, idropost.tipo, idropost.settore, idropost.valle
                 FROM public.idropost
                 WHERE public.idropost.settore = 1
                 ORDER BY idropost.settore,idropost.id, idropost.tipo;"]
-    (j/query (get-connection-from-pool) [query])))
-;; --- END
+      (j/query (get-connection-from-pool) [query])))
+  )
 
-;;  MAIN SET 2 OBJ
-(defn- set_2_obj [acc {:keys [id tipo valle]}]
-  (let [def-tipo {1M :base 2M :mezzo 3M :monte}
-        nodo (def-tipo tipo)
-        obj {:nodo nodo :valle valle}]
-    (assoc acc id obj)))
-
-(defn- main-set_2_obj [table]
-  (reduce set_2_obj {} table))
-
-;;  GROUP CHILDREN
-(defn- estrai-id-gruppo [gruppo]
-  (let [[k v] gruppo
-        solo-id (map :id v)]
-    {k solo-id}))
-
-(defn group-children [table]
-  (let [gruppo (group-by :valle table)]
-    (map estrai-id-gruppo gruppo)))
-
-
+(def idro-no-live (list {:id "F09", :tipo 1M, :settore 1M, :valle nil}
+                        {:id "F10", :tipo 2M, :settore 1M, :valle "F42"}
+                        {:id "F21", :tipo 2M, :settore 1M, :valle "F09"}
+                        {:id "F34", :tipo 2M, :settore 1M, :valle "F42"}
+                        {:id "F36", :tipo 1M, :settore 1M, :valle nil}
+                        {:id "F42", :tipo 2M, :settore 1M, :valle "F21"}
+                        {:id "F70", :tipo 2M, :settore 1M, :valle "L19"}
+                        {:id "L10", :tipo 3M, :settore 1M, :valle "F70"}
+                        {:id "L11", :tipo 3M, :settore 1M, :valle "F70"}
+                        {:id "L19", :tipo 2M, :settore 1M, :valle "F34"}
+                        {:id "L23", :tipo 3M, :settore 1M, :valle "F34"}
+                        {:id "L6", :tipo 3M, :settore 1M, :valle "F10"}))
 (defn main [table]
-  (let [obj (main-set_2_obj table)
+  (let [table-new
+        (letfn [(trasforma-new [{:keys [id tipo valle]}]
+                  (let [def-tipo {1M :base 2M :mezzo 3M :monte}
+                        nodo (def-tipo tipo)]
+                    {:id id :nodo nodo :valle valle}))]
+          (map trasforma-new table))
 
-        children
-        (->>
-          (group-children table)
-          (into {}))
+        table-obj
+        (letfn [(seq-to-obj [{:keys [id nodo valle]}]
+                  {id {:nodo nodo :valle valle}})]
+          (->> table-new
+               (map seq-to-obj)
+               (into {})))
+
+        group-by-children (group-by :valle table-new)
+
+        idrometri-a-monte
+        (letfn [(estrai-da-children [[idrometro children]]
+                  (let [valori
+                        (map
+                          (fn [{:keys [id]}]
+                            {:a-monte id}) children)]
+
+                    {idrometro (into [] valori)}))]
+          (->>
+            group-by-children
+            (map estrai-da-children)
+            (into {})))
+
 
         report-nodi
         (letfn [(conta-nodi [[k v]] {k (count v)})]
-          (map conta-nodi children))                    ; <-INPUT
+          (->> idrometri-a-monte
+               (map conta-nodi)
+               (into {})))
+
+        table-elaborata
+        (letfn [(elabora [] 1
+                  )]
+          (reduce elabora table-obj report-nodi))
 
         ]
-    {:obj         obj
-     :rootName    nil
-     :children    children
-     :report-nodi (into {} report-nodi)}))
+    {:table.new         table-new
+     :table.obj         table-obj
+     :group-by-chidren  group-by-children
+     :rootName          nil
+     :idrometri-a-monte idrometri-a-monte
+     :report-nodi       report-nodi}))
 
+(def ELABORATO
+  {:obj         {"F42" {:nodo :mezzo, :valle "F21"},
+                 "F21" {:nodo :mezzo, :valle "F09"},
+                 "L10" {:nodo :monte, :valle "F70"},
+                 "L19" {:nodo :mezzo, :valle "F34"},
+                 "L11" {:nodo :monte, :valle "F70"},
+                 "F10" {:nodo :mezzo, :valle "F42"},
+                 "F09" {:nodo :base, :valle nil},
+                 "L6"  {:nodo :monte, :valle "F10"},
+                 "F34" {:nodo :mezzo, :valle "F42"},
+                 "L23" {:nodo :monte, :valle "F34"},
+                 "F36" {:nodo :base, :valle nil},
+                 "F70" {:nodo :mezzo, :valle "L19"}},
+   :rootName    nil,
+   :children    {nil   '("F09" "F36"),
+                 "F42" '("F10" "F34"),
+                 "F09" '("F21"),
+                 "F21" '("F42"),
+                 "L19" '("F70"),
+                 "F70" '("L10" "L11"),
+                 "F34" '("L19" "L23"),
+                 "F10" '("L6")},
+   :report-nodi {nil 2, "F42" 2, "F09" 1, "F21" 1, "L19" 1, "F70" 2, "F34" 2, "F10" 1}})
 
-
-(def a
-  (main idro-live))
-a
-
-
-
-
-(= (a :children) (into {} (a :tmp.children)))
-
-
+(main idro-no-live)
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
@@ -113,16 +149,4 @@ a
    :tipo      [:definire :base :mezzo :monte]
    :idrometro {:F09 {:tipo :base, :settore :definire}}})
 
-(def idro-no-db (list {:id "F09", :tipo 1M, :settore 1M, :valle nil}
-                      {:id "F10", :tipo 2M, :settore 1M, :valle "F42"}
-                      {:id "F21", :tipo 2M, :settore 1M, :valle "F09"}
-                      {:id "F34", :tipo 2M, :settore 1M, :valle "L11"} ;; errore
-                      ;;{:id "F34", :tipo 2M, :settore 1M, :valle "F42"}
-                      {:id "F36", :tipo 1M, :settore 1M, :valle nil}
-                      {:id "F42", :tipo 2M, :settore 1M, :valle "F21"}
-                      {:id "F70", :tipo 2M, :settore 1M, :valle "L19"}
-                      {:id "L10", :tipo 3M, :settore 1M, :valle "F70"}
-                      {:id "L11", :tipo 3M, :settore 1M, :valle "F70"}
-                      {:id "L19", :tipo 2M, :settore 1M, :valle "F34"}
-                      {:id "L23", :tipo 3M, :settore 1M, :valle "F34"}
-                      {:id "L6", :tipo 3M, :settore 1M, :valle "F10"}))
+
