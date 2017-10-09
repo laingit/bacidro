@@ -180,8 +180,23 @@ a
 
 
 
-(def t (a :table.obj))
+(def t (a :idrometri-a-monte))
 
+
+(defn build-tree [a-monte id acc]
+  (let [children (get a-monte id)
+        monte (if children
+                acc
+
+                (map
+                  (fn [{:keys [a-monte]}]
+                    (let [])
+                    )
+                  children))
+        ]
+    {:name id :monte monte}))
+
+(def x (build-tree t nil {}))
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
