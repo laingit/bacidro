@@ -36,13 +36,69 @@
                         {:id "F21", :tipo 2M, :settore 1M, :valle "F09"}
                         {:id "F34", :tipo 2M, :settore 1M, :valle "F42"}
                         {:id "F36", :tipo 1M, :settore 1M, :valle nil}
-                        {:id "F42", :tipo 2M, :settore 1M, :valle "F21"}
-                        {:id "F70", :tipo 2M, :settore 1M, :valle "L19"}
+                        {:id "F42", :tipo 2M, :settore 1M, :valle "F21"} ;; F21
+                        {:id "F70", :tipo 2M, :settore 1M, :valle "L19"} ;; L19
                         {:id "L10", :tipo 3M, :settore 1M, :valle "F70"}
                         {:id "L11", :tipo 3M, :settore 1M, :valle "F70"}
-                        {:id "L19", :tipo 2M, :settore 1M, :valle "F34"}
+                        {:id "L19", :tipo 2M, :settore 1M, :valle "F34"} ;; F34
                         {:id "L23", :tipo 3M, :settore 1M, :valle "F34"}
                         {:id "L6", :tipo 3M, :settore 1M, :valle "F10"}))
+
+
+
+(defn- find-loop [table-obj]
+  (let [find-parent (fn [id]
+                      (let [parent (get-in table-obj [id :valle])]
+                        parent))
+
+        run (fn trova-idrometri-a-valle [acc id]
+              (let [{:keys [up loop]} acc
+                    parent (find-parent id)
+                    new-acc (if (nil? id)
+                              {:up up :loop loop}
+                              {:up (conj up id) :loop loop})]
+                (if (= parent nil)
+                  new-acc
+
+                  (let [gia-trovati (set up)]
+                    (if (gia-trovati id)
+                      {:up up :loop id}
+
+                      (trova-idrometri-a-valle
+                        new-acc
+                        parent)))
+
+                  )))
+
+        results (map
+                  (fn [[k {:keys [nodo]}]]
+                    (let [{:keys [up loop]} (run {:up [] :loop nil} k)]
+                      {:id k :nodo nodo :up up :loop loop}))
+                  table-obj)
+
+        errori (filter
+                 (fn [{:keys [id loop]}] (= id loop))
+                 results)
+
+        errori-monte (filter
+                 (fn [{:keys [nodo]}] (= nodo :monte))
+                 errori)
+
+        errori-1 (map
+                   (fn [{:keys [up] :as all}]
+                     (assoc all :set (set up)))
+                   errori)
+
+        gruppo-errori (group-by :set errori-1)
+
+        ]
+    {:all    results
+     :errori-1 errori-1
+     :errori-monte errori-monte
+     :gruppo-errori 'gruppo-errori}
+    ))
+
+
 (defn main [table]
   (let [table-new
         (letfn [(trasforma-new [{:keys [id tipo valle]}]
@@ -81,7 +137,7 @@
                (into {})))
 
         table-elaborata
-        (letfn [(elabora [] 1
+        (letfn [(elabora [acc v] 1
                   )]
           (reduce elabora table-obj report-nodi))
 
@@ -117,7 +173,15 @@
                  "F10" '("L6")},
    :report-nodi {nil 2, "F42" 2, "F09" 1, "F21" 1, "L19" 1, "F70" 2, "F34" 2, "F10" 1}})
 
-(main idro-no-live)
+(def a (main idro-no-live))
+
+(find-loop (a :table.obj))
+a
+
+
+
+(def t (a :table.obj))
+
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
