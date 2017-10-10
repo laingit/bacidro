@@ -232,14 +232,19 @@ t
 
 
 (def x (build-tree-bis t nil []))
-x
+
 (def y (trova-tutti t "L6" []))
 
-(->> (a :table.obj)
-     (map (fn [[k _]] {k (trova-tutti t k [])}))
-     (into {}))
+(def mappa-idrometro-parti
+  (->> (a :table.obj)
+       (map (fn [[k _]] {k (trova-tutti t k [])}))
+       (into {})))
 
-
+(def tabella-parti-idro
+  (mapcat
+    (fn [[k v]]
+      (for [vx v] {:sel k :id_parte vx}))
+    mappa-idrometro-parti))
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
