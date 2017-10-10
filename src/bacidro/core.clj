@@ -81,8 +81,8 @@
                  results)
 
         errori-monte (filter
-                 (fn [{:keys [nodo]}] (= nodo :monte))
-                 errori)
+                       (fn [{:keys [nodo]}] (= nodo :monte))
+                       errori)
 
         errori-1 (map
                    (fn [{:keys [up] :as all}]
@@ -92,9 +92,9 @@
         gruppo-errori (group-by :set errori-1)
 
         ]
-    {:all    results
-     :errori-1 errori-1
-     :errori-monte errori-monte
+    {:all           results
+     :errori-1      errori-1
+     :errori-monte  errori-monte
      :gruppo-errori 'gruppo-errori}
     ))
 
@@ -179,28 +179,33 @@
 a
 
 
-
 (def t (a :idrometri-a-monte))
+t
 
 
-(defn build-tree [a-monte id acc]
-  (let [children (get a-monte id)
-        monte (if children
-                acc
+(defn build-tree [t-obj id acc]
+  (let [children (get t-obj id)
+        monte (if (nil? children)
+                []
 
                 (map
+
                   (fn [{:keys [a-monte]}]
-                    (let [])
-                    )
+                    (let [child {:name a-monte :monte []}
+                          new-acc (conj acc child)]
+                      (build-tree t-obj a-monte new-acc)))
+
                   children))
         ]
     {:name id :monte monte}))
 
-(def x (build-tree t nil {}))
+(def x (build-tree t nil []))
+x
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
-   :idro   [{:name  :F09
+   :name   nil
+   :monte  [{:name  :F09
              :tipo  :base
              :monte [{:name  :F21
                       :tipo  :mezzo
