@@ -187,20 +187,54 @@ t
   (let [children (get t-obj id)
         monte (if (nil? children)
                 []
+                (->>
+                  (map
 
-                (map
+                    (fn [{:keys [a-monte]}]
+                      (let [child {:name a-monte :monte []}
+                            new-acc (conj acc child)]
+                        (build-tree t-obj a-monte new-acc)))
 
-                  (fn [{:keys [a-monte]}]
-                    (let [child {:name a-monte :monte []}
-                          new-acc (conj acc child)]
-                      (build-tree t-obj a-monte new-acc)))
-
-                  children))
+                    children)
+                  (into [])))
         ]
     {:name id :monte monte}))
 
-(def x (build-tree t nil []))
+(defn build-tree-bis [t-obj id acc]
+  (let [children (get t-obj id)
+        monte (if (nil? children)
+                acc
+                (->>
+                  (map
+
+                    (fn [{:keys [a-monte]}]
+                      (build-tree-bis t-obj a-monte acc))
+                    children)
+                  (into [])))
+
+        ]
+    {:name id :monte monte}))
+
+
+(defn trova-tutti [t-obj id acc]
+  (let [children (get t-obj id)
+        monte (if (nil? children)
+                acc
+                (mapcat
+                  (fn [{:keys [a-monte]}]
+                    (trova-tutti t-obj a-monte acc))
+
+                  children))
+        ]
+    (conj monte id)))
+
+
+(def x (build-tree-bis t nil []))
 x
+(def y (trova-tutti t nil []))
+y
+
+
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
