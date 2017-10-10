@@ -220,19 +220,24 @@ t
   (let [children (get t-obj id)
         monte (if (nil? children)
                 acc
-                (mapcat
-                  (fn [{:keys [a-monte]}]
-                    (trova-tutti t-obj a-monte acc))
+                (->>
+                  (mapcat
+                    (fn [{:keys [a-monte]}]
+                      (trova-tutti t-obj a-monte acc))
 
-                  children))
+                    children)
+                  (into [])))
         ]
     (conj monte id)))
 
 
 (def x (build-tree-bis t nil []))
 x
-(def y (trova-tutti t nil []))
-y
+(def y (trova-tutti t "L6" []))
+
+(->> (a :table.obj)
+     (map (fn [[k _]] {k (trova-tutti t k [])}))
+     (into {}))
 
 
 
