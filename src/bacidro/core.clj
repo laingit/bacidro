@@ -231,9 +231,8 @@ t
     (conj monte id)))
 
 
-(def x (build-tree-bis t nil []))
+(def my-tree (build-tree-bis t nil []))
 
-(def y (trova-tutti t "L6" []))
 
 (def mappa-idrometro-parti
   (->> (a :table.obj)
@@ -243,7 +242,7 @@ t
 (def tabella-parti-idro
   (mapcat
     (fn [[k v]]
-      (for [vx v] {:sel k :id_parte vx}))
+      (for [vx v] {:link_id k :to_dissolve vx}))
     mappa-idrometro-parti))
 
 (def BC_Fiume_Flumendosa
