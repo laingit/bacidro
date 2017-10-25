@@ -32,17 +32,17 @@
   )
 
 (def idro-no-live (list {:id "F09", :tipo 1M, :settore 1M, :valle nil}
-                        {:id "F10", :tipo 2M, :settore 1M, :valle "F42"}
-                        {:id "F21", :tipo 2M, :settore 1M, :valle "F09"}
-                        {:id "F34", :tipo 2M, :settore 1M, :valle "F42"}
-                        {:id "F36", :tipo 1M, :settore 1M, :valle nil}
-                        {:id "F42", :tipo 2M, :settore 1M, :valle "F21"} ;; F21
-                        {:id "F70", :tipo 2M, :settore 1M, :valle "L19"} ;; L19
-                        {:id "L10", :tipo 3M, :settore 1M, :valle "F70"}
-                        {:id "L11", :tipo 3M, :settore 1M, :valle "F70"}
-                        {:id "L19", :tipo 2M, :settore 1M, :valle "F34"} ;; F34
-                        {:id "L23", :tipo 3M, :settore 1M, :valle "F34"}
-                        {:id "L6", :tipo 3M, :settore 1M, :valle "F10"}))
+                          {:id "F10", :tipo 2M, :settore 1M, :valle "F42"}
+                          {:id "F21", :tipo 2M, :settore 1M, :valle "F09"}
+                          {:id "F34", :tipo 2M, :settore 1M, :valle "F42"}
+                          {:id "F36", :tipo 1M, :settore 1M, :valle nil}
+                          {:id "F42", :tipo 2M, :settore 1M, :valle "F21"} ;; F21
+                          {:id "F70", :tipo 2M, :settore 1M, :valle "L19"} ;; L19
+                          {:id "L10", :tipo 3M, :settore 1M, :valle "F70"}
+                          {:id "L11", :tipo 3M, :settore 1M, :valle "F70"}
+                          {:id "L19", :tipo 2M, :settore 1M, :valle "F34"} ;; F34
+                          {:id "L23", :tipo 3M, :settore 1M, :valle "F34"}
+                          {:id "L6", :tipo 3M, :settore 1M, :valle "F10"}))
 
 
 
@@ -242,8 +242,38 @@ t
 (def tabella-parti-idro
   (mapcat
     (fn [[k v]]
-      (for [vx v] {:link_id k :to_dissolve vx}))
+      (for [vx v] {:link_id_geo vx :to_dissolve k}))
     mappa-idrometro-parti))
+
+#_(def db-spec-a (kDB/msaccess {:db "e:/test_clj.mdb"}))
+(def db-spec-a (kDB/msaccess {:db "X:/_SNAPSHOT/PRJ_bac_idrometri/Bacidro.mdb"}))
+
+
+(j/db-do-commands db-spec-a false
+                  (ddl/create-table
+                    :lista_parti_doppie
+                    [:link_id_geo :varchar "NOT NULL"]
+                    [:to_dissolve :varchar "NOT NULL"]
+                    [:settore :varchar]
+                    ))
+
+#_(doseq [parte tabella-parti-idro]
+    (j/insert! db-spec :mytable
+               parte))
+
+(j/insert-multi! db-spec-a :lista_parti_doppie
+                 (sort-by
+                   (fn [{:keys [link_id_geo to_dissolve]}]
+                     (str link_id_geo to_dissolve))
+                   tabella-parti-idro))
+
+#_(j/db-do-commands
+  db-spec
+  false
+  (ddl/drop-table :mytable))
+
+
+tabella-parti-idro
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
