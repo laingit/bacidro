@@ -6,7 +6,8 @@
                               update
                               values)]
     [korma.db :as kDB :only (defdb get-connection)]
-    [clojure.java.jdbc :as j]))
+    [clojure.java.jdbc :as j]
+    [java-jdbc.ddl :as ddl]))
 
 (comment
   (def db-spec
@@ -31,19 +32,37 @@
       (j/query (get-connection-from-pool) [query])))
   )
 
-(def idro-no-live (list {:id "F09", :tipo 1M, :settore 1M, :valle nil}
-                          {:id "F10", :tipo 2M, :settore 1M, :valle "F42"}
-                          {:id "F21", :tipo 2M, :settore 1M, :valle "F09"}
-                          {:id "F34", :tipo 2M, :settore 1M, :valle "F42"}
-                          {:id "F36", :tipo 1M, :settore 1M, :valle nil}
-                          {:id "F42", :tipo 2M, :settore 1M, :valle "F21"} ;; F21
-                          {:id "F70", :tipo 2M, :settore 1M, :valle "L19"} ;; L19
-                          {:id "L10", :tipo 3M, :settore 1M, :valle "F70"}
-                          {:id "L11", :tipo 3M, :settore 1M, :valle "F70"}
-                          {:id "L19", :tipo 2M, :settore 1M, :valle "F34"} ;; F34
-                          {:id "L23", :tipo 3M, :settore 1M, :valle "F34"}
-                          {:id "L6", :tipo 3M, :settore 1M, :valle "F10"}))
+(def db-spec-a (kDB/msaccess {:db "X:/_SNAPSHOT/PRJ_bac_idrometri/Bacidro.mdb"}))
 
+(kDB/defdb korma-db db-spec-a)
+
+(defn- get-connection-from-pool []
+  (kDB/get-connection korma-db))
+
+
+(def idro-live
+  (let [query "SELECT \n
+                id, tipo, settore, valle
+                FROM tree_idrometri
+                WHERE TREE_IDROMETRI.SETTORE Is Not Null
+                ORDER BY settore,id;"]
+    (j/query (get-connection-from-pool) [query])))
+
+
+(filter (fn [idrometro] (= "FLUMENDOSA" (:settore idrometro))) idro-live)
+
+(def idro-no-live (list {:id "F09", :tipo "BASE", :settore "FLUMENDOSA", :valle nil}
+                        {:id "F10", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "F42"}
+                        {:id "F21", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "F09"}
+                        {:id "F34", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "F42"}
+                        {:id "F36", :tipo "BASE", :settore "FLUMENDOSA", :valle nil}
+                        {:id "F42", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "F21"}
+                        {:id "F70", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "L19"}
+                        {:id "L10", :tipo "MONTE", :settore "FLUMENDOSA", :valle "F70"}
+                        {:id "L11", :tipo "MONTE", :settore "FLUMENDOSA", :valle "F70"}
+                        {:id "L19", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "F34"}
+                        {:id "L23", :tipo "MONTE", :settore "FLUMENDOSA", :valle "F34"}
+                        {:id "L6", :tipo "MONTE", :settore "FLUMENDOSA", :valle "F10"}))
 
 
 (defn- find-loop [table-obj]
@@ -71,9 +90,9 @@
                   )))
 
         results (map
-                  (fn [[k {:keys [nodo]}]]
+                  (fn [[k {:keys [tipo]}]]
                     (let [{:keys [up loop]} (run {:up [] :loop nil} k)]
-                      {:id k :nodo nodo :up up :loop loop}))
+                      {:id k :tipo tipo :up up :loop loop}))
                   table-obj)
 
         errori (filter
@@ -81,7 +100,7 @@
                  results)
 
         errori-monte (filter
-                       (fn [{:keys [nodo]}] (= nodo :monte))
+                       (fn [{:keys [tipo]}] (= tipo :monte))
                        errori)
 
         errori-1 (map
@@ -95,21 +114,19 @@
     {:all           results
      :errori-1      errori-1
      :errori-monte  errori-monte
-     :gruppo-errori 'gruppo-errori}
+     :gruppo-errori gruppo-errori}
     ))
 
 
-(defn main [table]
+(defn main [table settore]
   (let [table-new
         (letfn [(trasforma-new [{:keys [id tipo valle]}]
-                  (let [def-tipo {1M :base 2M :mezzo 3M :monte}
-                        nodo (def-tipo tipo)]
-                    {:id id :nodo nodo :valle valle}))]
+                  {:id id :tipo tipo :valle valle})]
           (map trasforma-new table))
 
         table-obj
-        (letfn [(seq-to-obj [{:keys [id nodo valle]}]
-                  {id {:nodo nodo :valle valle}})]
+        (letfn [(seq-to-obj [{:keys [id tipo valle]}]
+                  {id {:tipo tipo :valle valle}})]
           (->> table-new
                (map seq-to-obj)
                (into {})))
@@ -136,51 +153,33 @@
                (map conta-nodi)
                (into {})))
 
-        table-elaborata
-        (letfn [(elabora [acc v] 1
-                  )]
-          (reduce elabora table-obj report-nodi))
-
         ]
-    {:table.new         table-new
-     :table.obj         table-obj
-     :group-by-chidren  group-by-children
-     :rootName          nil
+    {:settore settore
+     :table.new table-new
+     :table.obj table-obj
+     :group-by-chidren group-by-children
+     :rootName nil
      :idrometri-a-monte idrometri-a-monte
-     :report-nodi       report-nodi}))
+     :report-nodi report-nodi}))
 
-(def ELABORATO
-  {:obj         {"F42" {:nodo :mezzo, :valle "F21"},
-                 "F21" {:nodo :mezzo, :valle "F09"},
-                 "L10" {:nodo :monte, :valle "F70"},
-                 "L19" {:nodo :mezzo, :valle "F34"},
-                 "L11" {:nodo :monte, :valle "F70"},
-                 "F10" {:nodo :mezzo, :valle "F42"},
-                 "F09" {:nodo :base, :valle nil},
-                 "L6"  {:nodo :monte, :valle "F10"},
-                 "F34" {:nodo :mezzo, :valle "F42"},
-                 "L23" {:nodo :monte, :valle "F34"},
-                 "F36" {:nodo :base, :valle nil},
-                 "F70" {:nodo :mezzo, :valle "L19"}},
-   :rootName    nil,
-   :children    {nil   '("F09" "F36"),
-                 "F42" '("F10" "F34"),
-                 "F09" '("F21"),
-                 "F21" '("F42"),
-                 "L19" '("F70"),
-                 "F70" '("L10" "L11"),
-                 "F34" '("L19" "L23"),
-                 "F10" '("L6")},
-   :report-nodi {nil 2, "F42" 2, "F09" 1, "F21" 1, "L19" 1, "F70" 2, "F34" 2, "F10" 1}})
+(def elaborati
+  (->> idro-live
+       (group-by :settore)
+       (map (fn [[settore table]] {settore (main table settore)}))
+       (into {})))
+
+(def test-errori
+  (->> elaborati
+       (map (fn [[settore table]] {settore (find-loop (:table.obj table))}))
+       (into {})))
+
+test-errori
 
 (def a (main idro-no-live))
 
 (find-loop (a :table.obj))
-a
-
 
 (def t (a :idrometri-a-monte))
-t
 
 
 (defn build-tree [t-obj id acc]
@@ -215,6 +214,7 @@ t
         ]
     {:name id :monte monte}))
 
+(def my-tree (build-tree-bis t nil []))
 
 (defn trova-tutti [t-obj id acc]
   (let [children (get t-obj id)
@@ -230,10 +230,6 @@ t
         ]
     (conj monte id)))
 
-
-(def my-tree (build-tree-bis t nil []))
-
-
 (def mappa-idrometro-parti
   (->> (a :table.obj)
        (map (fn [[k _]] {k (trova-tutti t k [])}))
@@ -245,9 +241,14 @@ t
       (for [vx v] {:link_id_geo vx :to_dissolve k}))
     mappa-idrometro-parti))
 
-#_(def db-spec-a (kDB/msaccess {:db "e:/test_clj.mdb"}))
-(def db-spec-a (kDB/msaccess {:db "X:/_SNAPSHOT/PRJ_bac_idrometri/Bacidro.mdb"}))
 
+
+
+
+(j/db-do-commands
+  db-spec-a
+  false
+  (ddl/drop-table :lista_parti_doppie))
 
 (j/db-do-commands db-spec-a false
                   (ddl/create-table
@@ -257,20 +258,11 @@ t
                     [:settore :varchar]
                     ))
 
-#_(doseq [parte tabella-parti-idro]
-    (j/insert! db-spec :mytable
-               parte))
-
 (j/insert-multi! db-spec-a :lista_parti_doppie
                  (sort-by
                    (fn [{:keys [link_id_geo to_dissolve]}]
                      (str link_id_geo to_dissolve))
                    tabella-parti-idro))
-
-#_(j/db-do-commands
-  db-spec
-  false
-  (ddl/drop-table :mytable))
 
 
 tabella-parti-idro
