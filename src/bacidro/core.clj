@@ -7,6 +7,7 @@
                               values)]
     [korma.db :as kDB :only (defdb get-connection)]
     [clojure.java.jdbc :as j]
+    [clojure.pprint :as pp]
     [java-jdbc.ddl :as ddl]))
 
 (comment
@@ -173,48 +174,57 @@
        (map (fn [[settore table]] {settore (find-loop (:table.obj table))}))
        (into {})))
 
-test-errori
+(def isola-errori
+  (->> test-errori
+       (map (fn [[settore errori]]
+              (let [ errori-settore (:gruppo-errori errori)]
+                {settore (keys  errori-settore)})))
+       (into {})))
 
-(def a (main idro-no-live))
+(pp/pprint isola-errori)
+
+(def a (main idro-no-live "FLUMENDOSA"))
 
 (find-loop (a :table.obj))
 
 (def t (a :idrometri-a-monte))
 
+;; tree build NON USATO PER QUESTO MA UTILE
+(comment
+  (defn build-tree [t-obj id acc]
+    (let [children (get t-obj id)
+          monte (if (nil? children)
+                  []
+                  (->>
+                    (map
 
-(defn build-tree [t-obj id acc]
-  (let [children (get t-obj id)
-        monte (if (nil? children)
-                []
-                (->>
-                  (map
+                      (fn [{:keys [a-monte]}]
+                        (let [child {:name a-monte :monte []}
+                              new-acc (conj acc child)]
+                          (build-tree t-obj a-monte new-acc)))
 
-                    (fn [{:keys [a-monte]}]
-                      (let [child {:name a-monte :monte []}
-                            new-acc (conj acc child)]
-                        (build-tree t-obj a-monte new-acc)))
+                      children)
+                    (into [])))
+          ]
+      {:name id :monte monte}))
 
-                    children)
-                  (into [])))
-        ]
-    {:name id :monte monte}))
+  (defn build-tree-bis [t-obj id acc]
+    (let [children (get t-obj id)
+          monte (if (nil? children)
+                  acc
+                  (->>
+                    (map
 
-(defn build-tree-bis [t-obj id acc]
-  (let [children (get t-obj id)
-        monte (if (nil? children)
-                acc
-                (->>
-                  (map
+                      (fn [{:keys [a-monte]}]
+                        (build-tree-bis t-obj a-monte acc))
+                      children)
+                    (into [])))
 
-                    (fn [{:keys [a-monte]}]
-                      (build-tree-bis t-obj a-monte acc))
-                    children)
-                  (into [])))
+          ]
+      {:name id :monte monte}))
 
-        ]
-    {:name id :monte monte}))
-
-(def my-tree (build-tree-bis t nil []))
+  (def my-tree (build-tree-bis t nil []))
+  )
 
 (defn trova-tutti [t-obj id acc]
   (let [children (get t-obj id)
@@ -240,9 +250,6 @@ test-errori
     (fn [[k v]]
       (for [vx v] {:link_id_geo vx :to_dissolve k}))
     mappa-idrometro-parti))
-
-
-
 
 
 (j/db-do-commands
