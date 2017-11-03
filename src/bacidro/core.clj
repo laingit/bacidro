@@ -33,13 +33,13 @@
       (j/query (get-connection-from-pool) [query])))
   )
 
+;; ---------- MICROSOFT ACCESS
 (def db-spec-a (kDB/msaccess {:db "X:/_SNAPSHOT/PRJ_bac_idrometri/Bacidro.mdb"}))
 
 (kDB/defdb korma-db db-spec-a)
 
 (defn- get-connection-from-pool []
   (kDB/get-connection korma-db))
-
 
 (def idro-live
   (let [query "SELECT \n
@@ -48,7 +48,9 @@
                 WHERE TREE_IDROMETRI.SETTORE Is Not Null
                 ORDER BY settore,id;"]
     (j/query (get-connection-from-pool) [query])))
+;; ------------------------------------------------------------------------------
 
+(reduce conj #{} (map :settore idro-live))
 
 (filter (fn [idrometro] (= "FLUMENDOSA" (:settore idrometro))) idro-live)
 
@@ -155,13 +157,13 @@
                (into {})))
 
         ]
-    {:settore settore
-     :table.new table-new
-     :table.obj table-obj
-     :group-by-chidren group-by-children
-     :rootName nil
+    {:settore           settore
+     :table.new         table-new
+     :table-obj         table-obj
+     :group-by-chidren  group-by-children
+     :rootName          nil
      :idrometri-a-monte idrometri-a-monte
-     :report-nodi report-nodi}))
+     :report-nodi       report-nodi}))
 
 (def elaborati
   (->> idro-live
@@ -171,24 +173,37 @@
 
 (def test-errori
   (->> elaborati
-       (map (fn [[settore table]] {settore (find-loop (:table.obj table))}))
+       (map (fn [[settore table]] {settore (find-loop (:table-obj table))}))
        (into {})))
 
 (def isola-errori
   (->> test-errori
        (map (fn [[settore errori]]
-              (let [ errori-settore (:gruppo-errori errori)]
-                {settore (keys  errori-settore)})))
+              (let [errori-settore (:gruppo-errori errori)]
+                {settore (keys errori-settore)})))
        (into {})))
 
-(pp/pprint isola-errori)
+
+
+(pp/pprint {:errori   (filter
+                        (fn [[settore err]] (not (nil? err)))
+                        isola-errori)
+
+            :settori  (count isola-errori)
+
+            :lista-ok (->>
+                        isola-errori
+                        (filter (fn [[settore err]] (nil? err)))
+                        (map first))
+            })
 
 (def a (main idro-no-live "FLUMENDOSA"))
-
-(find-loop (a :table.obj))
+a
+(find-loop (a :table-obj))
 
 (def t (a :idrometri-a-monte))
-
+t
+elaborati
 ;; tree build NON USATO PER QUESTO MA UTILE
 (comment
   (defn build-tree [t-obj id acc]
@@ -240,16 +255,51 @@
         ]
     (conj monte id)))
 
+
+
 (def mappa-idrometro-parti
-  (->> (a :table.obj)
+  (->> (a :table-obj)
        (map (fn [[k _]] {k (trova-tutti t k [])}))
        (into {})))
 
-(def tabella-parti-idro
+(defn- elabora-settore
+  [[nome-settore {:keys [table-obj idrometri-a-monte]}]]
+  (let [mappa-parti
+        (->> table-obj
+             (map (fn [[key-idro _]]
+                    {key-idro (trova-tutti idrometri-a-monte key-idro [])}))
+             (into {}))]
+
+    {:settore nome-settore :mappa-parti mappa-parti}))
+
+(elabora-settore (find elaborati "FLUMENDOSA"))
+
+mappa-idrometro-parti
+
+(def ex-tabella-parti-idro
   (mapcat
     (fn [[k v]]
       (for [vx v] {:link_id_geo vx :to_dissolve k}))
     mappa-idrometro-parti))
+
+(defn crea-record-tabella-parti-idro
+  [{:keys [settore mappa-parti]}]
+  (mapcat
+    (fn [[k v]]
+      (for [vx v] {:settore settore :link_id_geo vx :to_dissolve k}))
+    mappa-parti))
+
+;; test singolo
+(-> elaborati
+    (find "FLUMENDOSA")
+    elabora-settore
+    crea-record-tabella-parti-idro)
+
+(def new-records-TABELLA-PARTI-IDRO
+  (->>
+    elaborati
+    (map elabora-settore)
+    (mapcat crea-record-tabella-parti-idro)))
 
 
 (j/db-do-commands
@@ -267,9 +317,9 @@
 
 (j/insert-multi! db-spec-a :lista_parti_doppie
                  (sort-by
-                   (fn [{:keys [link_id_geo to_dissolve]}]
-                     (str link_id_geo to_dissolve))
-                   tabella-parti-idro))
+                   (fn [{:keys [settore link_id_geo to_dissolve]}]
+                     (str settore link_id_geo to_dissolve))
+                   new-records-TABELLA-PARTI-IDRO))
 
 
 tabella-parti-idro
