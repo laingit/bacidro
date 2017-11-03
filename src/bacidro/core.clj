@@ -158,52 +158,59 @@
 
         ]
     {:settore           settore
-     :table.new         table-new
+     :table-new         table-new
      :table-obj         table-obj
      :group-by-chidren  group-by-children
      :rootName          nil
      :idrometri-a-monte idrometri-a-monte
      :report-nodi       report-nodi}))
 
-(def elaborati
+(def GLOBAL-ELABORATI
   (->> idro-live
        (group-by :settore)
        (map (fn [[settore table]] {settore (main table settore)}))
        (into {})))
 
-(def test-errori
-  (->> elaborati
+(def GLOBAL-TEST-ERRORI
+  (->> GLOBAL-ELABORATI
        (map (fn [[settore table]] {settore (find-loop (:table-obj table))}))
        (into {})))
 
-(def isola-errori
-  (->> test-errori
+(def GLOBAL-ISOLA-ERRORI
+  (->> GLOBAL-TEST-ERRORI
        (map (fn [[settore errori]]
               (let [errori-settore (:gruppo-errori errori)]
                 {settore (keys errori-settore)})))
        (into {})))
 
+(def GLOBAL-REPORT
+  {:errori   (filter
+               (fn [[settore err]] (not (nil? err)))
+               GLOBAL-ISOLA-ERRORI)
+
+   :settori  (count GLOBAL-ISOLA-ERRORI)
+
+   :lista-ok (->>
+               GLOBAL-ISOLA-ERRORI
+               (filter (fn [[settore err]] (nil? err)))
+               (map first))
+   })
+
+(pp/pprint
+  GLOBAL-ELABORATI)
+
+(pp/pprint
+  GLOBAL-TEST-ERRORI)
+
+(pp/pprint GLOBAL-REPORT)
+
+(find GLOBAL-ELABORATI "TEMO")
+(find GLOBAL-TEST-ERRORI "TEMO")
+GLOBAL-ELABORATI
+GLOBAL-TEST-ERRORI
+GLOBAL-REPORT
 
 
-(pp/pprint {:errori   (filter
-                        (fn [[settore err]] (not (nil? err)))
-                        isola-errori)
-
-            :settori  (count isola-errori)
-
-            :lista-ok (->>
-                        isola-errori
-                        (filter (fn [[settore err]] (nil? err)))
-                        (map first))
-            })
-
-(def a (main idro-no-live "FLUMENDOSA"))
-a
-(find-loop (a :table-obj))
-
-(def t (a :idrometri-a-monte))
-t
-elaborati
 ;; tree build NON USATO PER QUESTO MA UTILE
 (comment
   (defn build-tree [t-obj id acc]
@@ -241,26 +248,21 @@ elaborati
   (def my-tree (build-tree-bis t nil []))
   )
 
-(defn trova-tutti [t-obj id acc]
+(defn- trova-tutti [t-obj id acc]
   (let [children (get t-obj id)
         monte (if (nil? children)
                 acc
                 (->>
+
                   (mapcat
                     (fn [{:keys [a-monte]}]
                       (trova-tutti t-obj a-monte acc))
-
                     children)
+
                   (into [])))
         ]
     (conj monte id)))
 
-
-
-(def mappa-idrometro-parti
-  (->> (a :table-obj)
-       (map (fn [[k _]] {k (trova-tutti t k [])}))
-       (into {})))
 
 (defn- elabora-settore
   [[nome-settore {:keys [table-obj idrometri-a-monte]}]]
@@ -272,16 +274,6 @@ elaborati
 
     {:settore nome-settore :mappa-parti mappa-parti}))
 
-(elabora-settore (find elaborati "FLUMENDOSA"))
-
-mappa-idrometro-parti
-
-(def ex-tabella-parti-idro
-  (mapcat
-    (fn [[k v]]
-      (for [vx v] {:link_id_geo vx :to_dissolve k}))
-    mappa-idrometro-parti))
-
 (defn crea-record-tabella-parti-idro
   [{:keys [settore mappa-parti]}]
   (mapcat
@@ -290,23 +282,24 @@ mappa-idrometro-parti
     mappa-parti))
 
 ;; test singolo
-(-> elaborati
+(-> GLOBAL-ELABORATI
     (find "FLUMENDOSA")
     elabora-settore
     crea-record-tabella-parti-idro)
 
 (def new-records-TABELLA-PARTI-IDRO
   (->>
-    elaborati
+    GLOBAL-ELABORATI
     (map elabora-settore)
     (mapcat crea-record-tabella-parti-idro)))
 
-
+;; DELETE tabella: "lista_parti_doppie"
 (j/db-do-commands
   db-spec-a
   false
   (ddl/drop-table :lista_parti_doppie))
 
+;; CREA tabella: "lista_parti_doppie"
 (j/db-do-commands db-spec-a false
                   (ddl/create-table
                     :lista_parti_doppie
@@ -315,14 +308,12 @@ mappa-idrometro-parti
                     [:settore :varchar]
                     ))
 
+;; INSERT record -> tabella: "lista_parti_doppie"
 (j/insert-multi! db-spec-a :lista_parti_doppie
                  (sort-by
                    (fn [{:keys [settore link_id_geo to_dissolve]}]
                      (str settore link_id_geo to_dissolve))
                    new-records-TABELLA-PARTI-IDRO))
-
-
-tabella-parti-idro
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
