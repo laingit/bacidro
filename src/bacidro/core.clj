@@ -50,24 +50,6 @@
     (j/query (get-connection-from-pool) [query])))
 ;; ------------------------------------------------------------------------------
 
-(reduce conj #{} (map :settore idro-live))
-
-(filter (fn [idrometro] (= "FLUMENDOSA" (:settore idrometro))) idro-live)
-
-(def idro-no-live (list {:id "F09", :tipo "BASE", :settore "FLUMENDOSA", :valle nil}
-                        {:id "F10", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "F42"}
-                        {:id "F21", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "F09"}
-                        {:id "F34", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "F42"}
-                        {:id "F36", :tipo "BASE", :settore "FLUMENDOSA", :valle nil}
-                        {:id "F42", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "F21"}
-                        {:id "F70", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "L19"}
-                        {:id "L10", :tipo "MONTE", :settore "FLUMENDOSA", :valle "F70"}
-                        {:id "L11", :tipo "MONTE", :settore "FLUMENDOSA", :valle "F70"}
-                        {:id "L19", :tipo "MEZZO", :settore "FLUMENDOSA", :valle "F34"}
-                        {:id "L23", :tipo "MONTE", :settore "FLUMENDOSA", :valle "F34"}
-                        {:id "L6", :tipo "MONTE", :settore "FLUMENDOSA", :valle "F10"}))
-
-
 (defn- find-loop [table-obj]
   (let [find-parent (fn [id]
                       (let [parent (get-in table-obj [id :valle])]
@@ -165,10 +147,18 @@
      :idrometri-a-monte idrometri-a-monte
      :report-nodi       report-nodi}))
 
+(pp/pprint idro-live)
+
+(group-by :settore idro-live)
+
 (def GLOBAL-ELABORATI
   (->> idro-live
        (group-by :settore)
-       (map (fn [[settore table]] {settore (main table settore)}))
+
+       (map
+         (fn [[settore table]]
+           {settore (main table settore)}))
+
        (into {})))
 
 (def GLOBAL-TEST-ERRORI
@@ -206,6 +196,7 @@
 
 (find GLOBAL-ELABORATI "TEMO")
 (find GLOBAL-TEST-ERRORI "TEMO")
+
 GLOBAL-ELABORATI
 GLOBAL-TEST-ERRORI
 GLOBAL-REPORT
@@ -292,6 +283,7 @@ GLOBAL-REPORT
     GLOBAL-ELABORATI
     (map elabora-settore)
     (mapcat crea-record-tabella-parti-idro)))
+
 
 ;; DELETE tabella: "lista_parti_doppie"
 (j/db-do-commands
