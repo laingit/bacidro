@@ -1,54 +1,8 @@
 (ns bacidro.core
   (:require
-    [korma.core :as k :only (defentity
-                              set-fields
-                              insert
-                              update
-                              values)]
-    [korma.db :as kDB :only (defdb get-connection)]
-    [clojure.java.jdbc :as j]
     [clojure.pprint :as pp]
-    [java-jdbc.ddl :as ddl]))
-
-(comment
-  (def db-spec
-    {:classname   "org.postgresql.Driver"
-     :subprotocol "postgresql"
-     :subname     "//192.168.18.51:5432/rumbl_dev"
-     :user        "postgres"
-     :password    "postgres"})
-
-  (kDB/defdb korma-db db-spec)
-
-  (defn- get-connection-from-pool []
-    (kDB/get-connection korma-db))
-
-
-  (def idro-live
-    (let [query "SELECT \n
-                idropost.id, idropost.tipo, idropost.settore, idropost.valle
-                FROM public.idropost
-                WHERE public.idropost.settore = 1
-                ORDER BY idropost.settore,idropost.id, idropost.tipo;"]
-      (j/query (get-connection-from-pool) [query])))
-  )
-
-;; ---------- MICROSOFT ACCESS
-(def db-spec-a (kDB/msaccess {:db "X:/_SNAPSHOT/PRJ_bac_idrometri/Bacidro.mdb"}))
-
-(kDB/defdb korma-db db-spec-a)
-
-(defn- get-connection-from-pool []
-  (kDB/get-connection korma-db))
-
-(def idro-live
-  (let [query "SELECT \n
-                id, tipo, settore, valle
-                FROM tree_idrometri
-                WHERE TREE_IDROMETRI.SETTORE Is Not Null
-                ORDER BY settore,id;"]
-    (j/query (get-connection-from-pool) [query])))
-;; ------------------------------------------------------------------------------
+    [bacidro.db-access :as my-db-access]
+    [bacidro.db-access :as my-db-file]))
 
 (defn- find-loop [table-obj]
   (let [find-parent (fn [id]
@@ -102,7 +56,6 @@
      :gruppo-errori gruppo-errori}
     ))
 
-
 (defn main [table settore]
   (let [table-new
         (letfn [(trasforma-new [{:keys [id tipo valle]}]
@@ -147,12 +100,13 @@
      :idrometri-a-monte idrometri-a-monte
      :report-nodi       report-nodi}))
 
-(pp/pprint idro-live)
+(def idro-data (my-db-access/get-idro-data))
+idro-data
 
-(group-by :settore idro-live)
+(group-by :settore  idro-data)
 
 (def GLOBAL-ELABORATI
-  (->> idro-live
+  (->> idro-data
        (group-by :settore)
 
        (map
@@ -285,27 +239,7 @@ GLOBAL-REPORT
     (mapcat crea-record-tabella-parti-idro)))
 
 
-;; DELETE tabella: "lista_parti_doppie"
-(j/db-do-commands
-  db-spec-a
-  false
-  (ddl/drop-table :lista_parti_doppie))
-
-;; CREA tabella: "lista_parti_doppie"
-(j/db-do-commands db-spec-a false
-                  (ddl/create-table
-                    :lista_parti_doppie
-                    [:link_id_geo :varchar "NOT NULL"]
-                    [:to_dissolve :varchar "NOT NULL"]
-                    [:settore :varchar]
-                    ))
-
-;; INSERT record -> tabella: "lista_parti_doppie"
-(j/insert-multi! db-spec-a :lista_parti_doppie
-                 (sort-by
-                   (fn [{:keys [settore link_id_geo to_dissolve]}]
-                     (str settore link_id_geo to_dissolve))
-                   new-records-TABELLA-PARTI-IDRO))
+(my-db-access/write-new-records new-records-TABELLA-PARTI-IDRO)
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
@@ -332,10 +266,5 @@ GLOBAL-REPORT
             {:name :F36, :tipo :monte, :monte []}
             ]})
 
-
-(def db-idro
-  {:settore   [:definire :flumendosa]
-   :tipo      [:definire :base :mezzo :monte]
-   :idrometro {:F09 {:tipo :base, :settore :definire}}})
 
 
