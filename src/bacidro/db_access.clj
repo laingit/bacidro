@@ -12,22 +12,37 @@
 
 
 ;; ---------- MICROSOFT ACCESS -> NEEDS JDK 7 ;; DO NOT WORK ON JDK 8
-(def  GLOBAL-db-spec (kDB/msaccess {:db "X:/_SNAPSHOT/PRJ_bac_idrometri/Bacidro.mdb"}))
+(def GLOBAL-db-spec (kDB/msaccess {:db "X:/_SNAPSHOT/PRJ_bac_idrometri/Bacidro.mdb"}))
 
-(kDB/defdb korma-db  GLOBAL-db-spec)
+(kDB/defdb korma-db GLOBAL-db-spec)
 
 (defn- get-connection-from-pool []
   (kDB/get-connection korma-db))
 
 (defn get-idro-data []
   (let [query "SELECT \n
-                id, tipo, settore, valle, bacino_cfd
+                id, tipo, settore, valle
                 FROM tree_idrometri
                 WHERE TREE_IDROMETRI.SETTORE Is Not Null
-                ORDER BY bacino_cfd,settore,id;"]
+                ORDER BY settore,id;"]
+    (j/query (get-connection-from-pool) [query])))
+
+(defn get-LITO-data []
+  (let [query "SELECT \n
+                LITO_DUE_AREE_KM2_IDROMETRI.SETTORE,
+                LITO_DUE_AREE_KM2_IDROMETRI.IDROMETRO,
+                LITO_DUE_AREE_KM2_IDROMETRI.LIV_2,
+                LITO_DUE_AREE_KM2_IDROMETRI.IDROMETRO_KM2,
+                LITO_DUE_AREE_KM2_IDROMETRI.AREA_FORMA_KM2,
+                LITO_DUE_AREE_KM2_IDROMETRI.PERCENTO_IDROMETRO \n
+                FROM LITO_DUE_AREE_KM2_IDROMETRI \n
+                ORDER BY SETTORE,IDROMETRO ;"]
     (j/query (get-connection-from-pool) [query])))
 ;; ------------------------------------------------------------------------------
-
+(->>
+  (get-LITO-data)
+  (group-by :idrometro)(first)
+  )
 
 (defn- delete-and-create-table [table-name]
   (let []
