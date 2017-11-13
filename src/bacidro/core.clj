@@ -25,7 +25,6 @@
                       (trova-idrometri-a-valle
                         new-acc
                         parent)))
-
                   )))
 
         results (map
@@ -103,7 +102,7 @@
 (def idro-data (my-db-access/get-idro-data))
 idro-data
 
-(group-by :settore  idro-data)
+(group-by :settore idro-data)
 
 (def GLOBAL-ELABORATI
   (->> idro-data
@@ -148,8 +147,9 @@ idro-data
 
 (pp/pprint GLOBAL-REPORT)
 
-(find GLOBAL-ELABORATI "TEMO")
+(find GLOBAL-ELABORATI "CEDRINO")
 (find GLOBAL-TEST-ERRORI "TEMO")
+
 
 GLOBAL-ELABORATI
 GLOBAL-TEST-ERRORI
@@ -158,39 +158,95 @@ GLOBAL-REPORT
 
 ;; tree build NON USATO PER QUESTO MA UTILE
 (comment
-  (defn build-tree [t-obj id acc]
-    (let [children (get t-obj id)
-          monte (if (nil? children)
-                  []
-                  (->>
-                    (map
+  #_(defn build-tree [idrometri-a-monte id-root acc valore]
+      (let [children (get idrometri-a-monte id-root)
+            monte (if (nil? children)
+                    []
+                    (->>
+                      (map
+                        (fn [{:keys [a-monte]}]
+                          (let [child {:name a-monte :valore valore :monte []}
+                                new-acc (conj acc child)]
+                            (build-tree idrometri-a-monte a-monte new-acc (+ valore 1))))
 
-                      (fn [{:keys [a-monte]}]
-                        (let [child {:name a-monte :monte []}
-                              new-acc (conj acc child)]
-                          (build-tree t-obj a-monte new-acc)))
+                        children)
+                      (into [])))
+            ]
+        {:name   id-root
+         :valore valore
+         :monte  monte}))
 
-                      children)
-                    (into [])))
-          ]
-      {:name id :monte monte}))
-
-  (defn build-tree-bis [t-obj id acc]
-    (let [children (get t-obj id)
+  (defn build-tree-bis
+    [{:keys [idrometri-a-monte
+             id-root
+             acc
+             livello
+             tree-name
+             sub-val]}]
+    (let [children (get idrometri-a-monte id-root)
+          n-child (count children)
           monte (if (nil? children)
                   acc
                   (->>
                     (map
-
-                      (fn [{:keys [a-monte]}]
-                        (build-tree-bis t-obj a-monte acc))
-                      children)
+                      (fn [{:keys [a-monte]} sub-x]
+                        (build-tree-bis
+                          {:idrometri-a-monte idrometri-a-monte
+                           :id-root           a-monte
+                           :acc               acc
+                           :livello           (+ livello 1)
+                           :tree-name         (str tree-name "." sub-x)
+                           :sub-val           sub-x}))
+                      children (range 1 1000))
                     (into [])))
 
           ]
-      {:name id :monte monte}))
+      {:name    id-root
+       :livello livello
+       :tree-name  tree-name
+       :sub-val sub-val
+       :n-child n-child
+       :monte   monte}))
 
-  (def my-tree (build-tree-bis t nil []))
+  ;; String ->
+  ;; input GLOBALE   : GLOBAL-ELABORATI
+  ;; input parametro : settore
+
+  (defn sx [nome-settore]
+    (let [dati-settore (GLOBAL-ELABORATI nome-settore)
+          {:keys [idrometri-a-monte]} dati-settore
+          root (idrometri-a-monte nil)
+          errore (if (= (count root) 1) false true)         ;solo un elemento root consentito
+          id-root (-> root first :a-monte)]
+      {:settore                    nome-settore
+       :errore                     errore
+       :look-in-root-if-error-true root
+       :id-root                    id-root
+       :idrometri-a-monte          idrometri-a-monte}))
+
+
+  (sx "CHIA")
+
+  (defn- my-tree [nome-settore]
+    (let [elabora-settore (sx nome-settore)
+          {:keys [settore
+                  errore
+                  look-in-root-if-error-true
+                  id-root
+                  idrometri-a-monte]}
+          elabora-settore]
+      (if errore
+        (print settore look-in-root-if-error-true)
+        (build-tree-bis
+          {:idrometri-a-monte idrometri-a-monte
+           :id-root           id-root
+           :acc               []
+           :livello           1
+           :tree-name         "1"
+           :sub-val           1}))))
+
+  (my-tree "MANNU")
+
   )
 
 (defn- trova-tutti [t-obj id acc]
@@ -239,7 +295,7 @@ GLOBAL-REPORT
     (mapcat crea-record-tabella-parti-idro)))
 
 
-(my-db-access/write-new-records new-records-TABELLA-PARTI-IDRO)
+#_(my-db-access/write-new-records new-records-TABELLA-PARTI-IDRO) ;; SCRIVE NELLA TABELLA ACCESS *******************
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
