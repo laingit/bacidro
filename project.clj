@@ -7,6 +7,8 @@
                  [org.clojure/java.jdbc "0.7.2"]
                  [java-jdbc/dsl "0.1.3"]
                  [org.postgresql/postgresql "42.1.4"]
-                 [korma "0.4.3"]])
+                 [korma "0.4.3"]
+                 [clj-pdf "2.2.30"]
+                 ])
 
 

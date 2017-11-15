@@ -156,8 +156,6 @@ GLOBAL-TEST-ERRORI
 GLOBAL-REPORT
 
 
-;; tree build NON USATO PER QUESTO MA UTILE
-(comment
   #_(defn build-tree [idrometri-a-monte id-root acc valore]
       (let [children (get idrometri-a-monte id-root)
             monte (if (nil? children)
@@ -178,6 +176,7 @@ GLOBAL-REPORT
 
   (defn build-tree-bis
     [{:keys [idrometri-a-monte
+             contribuisce-a
              id-root
              acc
              livello
@@ -189,19 +188,21 @@ GLOBAL-REPORT
                   acc
                   (->>
                     (map
-                      (fn [{:keys [a-monte]} sub-x]
+                      (fn [{:keys [a-monte]} sub-val-children]
                         (build-tree-bis
                           {:idrometri-a-monte idrometri-a-monte
+                           :contribuisce-a (conj contribuisce-a id-root)
                            :id-root           a-monte
                            :acc               acc
                            :livello           (+ livello 1)
-                           :tree-name         (str tree-name "." sub-x)
-                           :sub-val           sub-x}))
-                      children (range 1 1000))
+                           :tree-name         (str tree-name "." sub-val-children)
+                           :sub-val           sub-val-children}))
+                      children (range 1 1000000))
                     (into [])))
 
           ]
       {:name    id-root
+       :contribuisce-a (->> (conj contribuisce-a id-root) (into []))
        :livello livello
        :tree-name  tree-name
        :sub-val sub-val
@@ -240,14 +241,14 @@ GLOBAL-REPORT
         (build-tree-bis
           {:idrometri-a-monte idrometri-a-monte
            :id-root           id-root
+           :contribuisce-a    ()
            :acc               []
            :livello           1
            :tree-name         "1"
            :sub-val           1}))))
 
-  (my-tree "MANNU")
+  (my-tree "COGHINAS")
 
-  )
 
 (defn- trova-tutti [t-obj id acc]
   (let [children (get t-obj id)

@@ -38,10 +38,24 @@
                 FROM LITO_DUE_AREE_KM2_IDROMETRI \n
                 ORDER BY SETTORE,IDROMETRO ;"]
     (j/query (get-connection-from-pool) [query])))
+
+(defn get-LITO-LIV2 []
+  (let [query
+        "SELECT LEGENDA_DUE.LIV_2, LEGENDA_DUE.LIV_2_DESC, LEGENDA_DUE.LABEL, LEGENDA_DUE.RGB
+         FROM LEGENDA_DUE
+         ORDER BY LEGENDA_DUE.LIV_2;"
+        ]
+    (j/query (get-connection-from-pool) [query])))
+
+
+(get-LITO-LIV2)
+(get-LITO-data)
+
 ;; ------------------------------------------------------------------------------
 (->>
   (get-LITO-data)
-  (group-by :idrometro)(first)
+  (group-by :settore)
+
   )
 
 (defn- delete-and-create-table [table-name]
