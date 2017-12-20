@@ -12,7 +12,8 @@
 
 
 ;; ---------- MICROSOFT ACCESS -> NEEDS JDK 7 ;; DO NOT WORK ON JDK 8
-(def GLOBAL-db-spec (kDB/msaccess {:db "X:/_SNAPSHOT/PRJ_bac_idrometri/Bacidro.mdb"}))
+#_(def GLOBAL-db-spec (kDB/msaccess {:db "X:/_SNAPSHOT/PRJ_V001_bac_idrometri/Bacidro.mdb"}))
+(def GLOBAL-db-spec (kDB/msaccess {:db "X:/_SNAPSHOT/PRJ_V002_bac_idrometri/Intrometro.mdb"}))
 
 (kDB/defdb korma-db GLOBAL-db-spec)
 
@@ -27,7 +28,7 @@
                 ORDER BY settore,id;"]
     (j/query (get-connection-from-pool) [query])))
 
-(defn get-LITO-data []
+#_(defn get-LITO-data []
   (let [query "SELECT \n
                 LITO_DUE_AREE_KM2_IDROMETRI.SETTORE,
                 LITO_DUE_AREE_KM2_IDROMETRI.IDROMETRO,
@@ -39,7 +40,7 @@
                 ORDER BY SETTORE,IDROMETRO ;"]
     (j/query (get-connection-from-pool) [query])))
 
-(defn get-LITO-LIV2 []
+#_(defn get-LITO-LIV2 []
   (let [query
         "SELECT LEGENDA_DUE.LIV_2, LEGENDA_DUE.LIV_2_DESC, LEGENDA_DUE.LABEL, LEGENDA_DUE.RGB
          FROM LEGENDA_DUE
@@ -48,11 +49,9 @@
     (j/query (get-connection-from-pool) [query])))
 
 
-(get-LITO-LIV2)
-(get-LITO-data)
 
 ;; ------------------------------------------------------------------------------
-(->>
+#_(->>
   (get-LITO-data)
   (group-by :settore)
 

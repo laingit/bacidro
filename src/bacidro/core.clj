@@ -296,7 +296,7 @@ GLOBAL-REPORT
     (mapcat crea-record-tabella-parti-idro)))
 
 
-#_(my-db-access/write-new-records new-records-TABELLA-PARTI-IDRO) ;; SCRIVE NELLA TABELLA ACCESS *******************
+(my-db-access/write-new-records new-records-TABELLA-PARTI-IDRO) ;; SCRIVE NELLA TABELLA ACCESS *******************
 
 (def BC_Fiume_Flumendosa
   {:bacino "Fiume Flumendosa"
